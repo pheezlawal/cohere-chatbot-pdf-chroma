@@ -11,44 +11,30 @@ const filePath = "docs";
 
 export const run = async () => {
   try {
-    /* Load raw docs from all files in the directory */
     const directoryLoader = new DirectoryLoader(filePath, {
       ".pdf": (path) => new CustomPDFLoader(path),
     });
 
     const rawDocs = await directoryLoader.load();
 
-    /* Split text into chunks */
     const textSplitter = new RecursiveCharacterTextSplitter({
       chunkSize: 1000,
       chunkOverlap: 200,
     });
 
     const docs = await textSplitter.splitDocuments(rawDocs);
-    console.log("split docs", docs);
+    console.log("split docs", docs.length);
 
     console.log("creating vector store...");
 
-    /* Create and store the embeddings in the vector store */
     const embeddings = new CohereEmbeddings({
       model: "embed-english-v3.0",
       apiKey: COHERE_API_KEY,
       batchSize: 48,
     });
 
-    // Optional: clear existing collection first
-    const chroma = new Chroma(embeddings, {
-      collectionName: COLLECTION_NAME,
-    });
-
-    if (chroma.index?.reset) {
-      await chroma.index.reset();
-    }
-
-    // Ingest documents in batches of 100
     for (let i = 0; i < docs.length; i += 100) {
       const batch = docs.slice(i, i + 100);
-
       await Chroma.fromDocuments(batch, embeddings, {
         collectionName: COLLECTION_NAME,
       });
